@@ -346,7 +346,7 @@ FROM TBL_INSA;
 */
 
 --05. TBL_INSA 테이블의 이름(NAME), 기본급(BASICPAY), 수당(SUDANG), 기본급+수당 조회
-SELECT NAME, BASICPAY, SUDANG, BASICPAY + SUDANG
+SELECT NAME, BASICPAY, SUDANG, NVL(BASICPAY, 0) + NVL(SUDANG, 0)
 FROM TBL_INSA;
 /*
 홍길동	2610000	200000	2810000
@@ -656,7 +656,7 @@ WHERE BUSEO IN ('개발부', '영업부');
 --    (NAME, BASICPAY, SUDANG, BASICPAY+SUDANG)
 SELECT NAME "이름", BASICPAY "기본급", SUDANG "수당", BASICPAY+SUDANG "급여"    
 FROM TBL_INSA
-WHERE (BASICPAY + SUDANG) >= 2500000;
+WHERE (NVL(BASICPAY, 0) + NVL(SUDANG, 0)) >= 2500000;
 /*
 홍길동	2610000	200000	2810000
 이순애	2550000	160000	2710000
@@ -1020,7 +1020,7 @@ ORDER BY CITY DESC, BASICPAY DESC;
 
 --26. 서울 사람 중에서 기본급+수당(→급여) 내림차순으로 정렬.
 --    ( 이름, 출신도, 기본급+수당 )
-SELECT NAME "이름", CITY "출신도", BASICPAY + SUDANG "급여"
+SELECT NAME "이름", CITY "출신도", NVL(BASICPAY, 0) + NVL(SUDANG, 0) "급여"
 FROM TBL_INSA
 WHERE CITY = '서울'
 ORDER BY 급여 DESC;
@@ -1311,7 +1311,7 @@ FROM TBL_INSA;
 임수봉	01141514154
 김신애	01141514444
 */
-
+/*
 추가문제. (기본 문제 풀이가 모두 끝난 후 작성한다.)
           HR계정의 EMPLOYEES 테이블에서 커미션 받는 사람의 수와
           안받는 사람의 수를 조회한다.
@@ -1321,12 +1321,15 @@ FROM TBL_INSA;
           커미션받는사원    XXX
           커미션없는사원    XXX
           모든사원          XXX
-          
+*/          
 -- HR 계정에서 EMPLOYEES 테이블을 볼 수 있는 권한을
 -- SCOTT 에게 주어야 한다.
--- HR 계정에서 
+-- 『HR』 계정에서  ※ 위에 연결 확인!!!!!!!!!!!
 -- GRANT ALL ON EMPLOYEES TO SCOTT; 해주자
--- HR 계정에서 --==>> Grant을(를) 성공했습니다.
+-- HR 계정에서 
+GRANT ALL ON EMPLOYEES TO SCOTT; 
+--==>> Grant을(를) 성공했습니다.
+
 SELECT *
 FROM HR.EMPLOYEES;
 /*
@@ -1334,8 +1337,43 @@ FROM HR.EMPLOYEES;
 101	Neena	Kochhar	NKOCHHAR	515.123.4568	2005-09-21	AD_VP	17000		100	90
 이하 생략 
 이렇게 조회 가능함
-*/ 
-
+*/
+SELECT CASE WHEN T.커미션 IS NULL AND GROUPING(T.커미션) = 0 THEN '커미션없는사원'
+            WHEN T.커미션 IS NULL AND GROUPING(T.커미션) = 1 THEN '모든인원'
+            WHEN T.커미션 IS NOT NULL THEN '커미션받는사원'
+            ELSE '알수없음' END "커미션1" 
+     ,  COUNT(*) "인원수"       
+FROM 
+(
+    SELECT COMMISSION_PCT "커미션"
+    FROM HR.EMPLOYEES    
+)T
+GROUP BY ROLLUP(커미션);
+/*
+커미션받는사원	6
+커미션받는사원	5
+커미션받는사원	7
+커미션받는사원	6
+커미션받는사원	7
+커미션받는사원	3
+커미션받는사원	1
+커미션없는사원	72
+모든인원	    107   ... 안더해짐 ...
+*/
+SELECT CASE WHEN T.커미션 IS NULL THEN '모든인원' 
+             ELSE T.커미션 END "커미션"
+     , T.인원수
+FROM
+(
+    SELECT NVL2(COMMISSION_PCT, '커미션받는사원','커미션없는사원') "커미션", COUNT(*) "인원수"
+    FROM HR.EMPLOYEES
+    GROUP BY ROLLUP(NVL2(COMMISSION_PCT, '커미션받는사원','커미션없는사원'))
+)T;
+/*
+커미션받는사원	 35
+커미션없는사원	 72
+모든인원	    107
+*/
 
 
 --33. TBL_INSA 테이블에서 BASICPAY + SUDANG 이 
@@ -1346,9 +1384,9 @@ SELECT T.급여, COUNT(*)
 FROM 
 (
     SELECT NAME "이름", 
-    CASE WHEN BASICPAY + SUDANG >= 2000000 THEN '200만원 이상'
-         WHEN BASICPAY + SUDANG >= 1000000 THEN '100만원 이상 200만원 미만'   
-         WHEN BASICPAY + SUDANG < 1000000  THEN '100만원 미만'
+    CASE WHEN NVL(BASICPAY, 0) + NVL(SUDANG, 0) >= 2000000 THEN '200만원 이상'
+         WHEN NVL(BASICPAY, 0) + NVL(SUDANG, 0) >= 1000000 THEN '100만원 이상 200만원 미만'   
+         WHEN NVL(BASICPAY, 0) + NVL(SUDANG, 0) < 1000000  THEN '100만원 미만'
          ELSE '확인불가'
          END  "급여" 
     FROM TBL_INSA
@@ -1796,7 +1834,7 @@ FROM
     SELECT CASE WHEN SUBSTR(SSN, 8, 1) IN ('1','3') THEN '남자'
                 WHEN SUBSTR(SSN, 8, 1) IN ('2','4') THEN '여자'
                 ELSE '성별판별불가' END "성별" 
-         , CITY "지역", BASICPAY + SUDANG "급여" , BUSEO "부서"
+         , CITY "지역", NVL(BASICPAY, 0) + NVL(SUDANG, 0) "급여" , BUSEO "부서"
     FROM TBL_INSA
 )T 
 WHERE T.지역 = '서울'
@@ -2407,7 +2445,7 @@ WHERE SUBSTR(SSN,8,1) IN('1','3');
 SELECT T.부서, T.직위, SUM(T.급여)
 FROM 
 (
-    SELECT BUSEO "부서", JIKWI "직위",  BASICPAY + SUDANG "급여"
+    SELECT BUSEO "부서", JIKWI "직위",  NVL(BASICPAY, 0) + NVL(SUDANG, 0) "급여"
     FROM TBL_INSA
 )T
 GROUP BY T.부서, T.직위
@@ -2443,7 +2481,7 @@ ORDER BY 1, 3 DESC;
 SELECT T.부서 "부서", T.직위 "직위", COUNT(*) "인원수", SUM(T.급여) "급여합" , ROUND(AVG(T.급여)) "급여평균"
 FROM 
 (
-    SELECT BUSEO "부서", JIKWI "직위",  BASICPAY + SUDANG "급여"
+    SELECT BUSEO "부서", JIKWI "직위",  NVL(BASICPAY, 0) + NVL(SUDANG, 0) "급여"
     FROM TBL_INSA
 )T
 GROUP BY T.부서, T.직위
@@ -2824,7 +2862,7 @@ WHERE BASICPAY > (SELECT BASICPAY
 
 SELECT NAME "이름", BUSEO "부서명"
 FROM TBL_INSA
-WHERE BASICPAY + SUDANG > (SELECT AVG(BASICPAY + SUDANG)
+WHERE NVL(BASICPAY, 0) + NVL(SUDANG, 0) > (SELECT AVG(NVL(BASICPAY, 0) + NVL(SUDANG, 0))
                    FROM TBL_INSA
                    WHERE BUSEO = '총무부'); -- 총무부 평균 1862285
 /*
@@ -3050,8 +3088,8 @@ ORDER BY 1;
 SELECT T.이름, T.지역, T.급여, T.랭크
 FROM
 (
-    SELECT NAME "이름", CITY "지역", (BASICPAY + SUDANG) "급여"
-    , RANK() OVER(PARTITION BY CITY ORDER BY (BASICPAY + SUDANG) DESC) "랭크"
+    SELECT NAME "이름", CITY "지역", (NVL(BASICPAY, 0) + NVL(SUDANG, 0)) "급여"
+    , RANK() OVER(PARTITION BY CITY ORDER BY (NVL(BASICPAY, 0) + NVL(SUDANG, 0)) DESC) "랭크"
     FROM TBL_INSA
 )T 
 WHERE T.랭크 =1
@@ -3070,41 +3108,214 @@ ORDER BY T.급여 DESC;
 정상호	강원	1094000	1
 */
 
-87. 부서별 인원수가 가장 많은 부서 및 인원수 조회.
+--87. 부서별 인원수가 가장 많은 부서 및 인원수 조회.
 
-SELECT BUSEO, 인원수
+SELECT T.BUSEO, T.인원수
 FROM
 (   SELECT BUSEO, COUNT(*) "인원수", RANK() OVER(ORDER BY COUNT(*) DESC) "랭크"
     FROM TBL_INSA
-    GROUP BY BUSEO)
-WHERE 랭크=1;
+    GROUP BY BUSEO
+)T
+WHERE T.랭크=1;
 
 --==>> 영업부	16
 
 
 
-88. 지역(CITY)별 인원수가 가장 많은 지역 및 인원수 조회.
+--88. 지역(CITY)별 인원수가 가장 많은 지역 및 인원수 조회.
 
-89. 지역(CITY)별 평균 급여(BASICPAY + SUDANG)가
-    가장 높은 지역 및 평균급여 조회.
+SELECT T.CITY, T.인원수
+FROM 
+(   SELECT CITY, COUNT(*) "인원수", RANK() OVER(ORDER BY COUNT(*) DESC) "랭크"
+    FROM TBL_INSA
+    GROUP BY CITY
+)T
+WHERE T.랭크 = 1;
+--==>> 서울	20
 
-90. 여자 인원수가 가장 많은 부서 및 인원수 조회.
+--89. 지역(CITY)별 평균 급여(BASICPAY + SUDANG)가
+--    가장 높은 지역 및 평균급여 조회.
 
-91. 지역별 인원수 순위 조회.
+SELECT T.도시, T.평균급여
+FROM     
+(    
+    SELECT CITY "도시", ROUND(AVG(NVL(BASICPAY, 0) + NVL(SUDANG, 0))) "평균급여"
+         ,  RANK() OVER(ORDER BY  ROUND(AVG(NVL(BASICPAY, 0) + NVL(SUDANG, 0))) DESC) "랭크"
+    FROM TBL_INSA
+    GROUP BY CITY
+)T
+WHERE T.랭크 = 1;    
+--==>> 경남	2800000    
 
-92. 지역별 인원수 순위 조회하되 5순위까지만 출력.
+--90. 여자 인원수가 가장 많은 부서 및 인원수 조회.
 
-93. 이름, 부서, 출신도, 기본급, 수당, 기본급+수당, 세금, 실수령액 조회
-    단, 세금: 총급여가 250만원 이상이면 2%, 200만원 이상이면 1%, 나머지 0.
-    실수령액: 총급여-세금
+SELECT T.부서, T.여자인원수
+FROM 
+(
+    SELECT BUSEO "부서", COUNT(*) "여자인원수", RANK() OVER(ORDER BY COUNT(*) DESC) "랭크"
+    FROM TBL_INSA
+    WHERE SUBSTR(SSN, 8, 1) IN('2','4')
+    GROUP BY BUSEO
+)T
+WHERE T.랭크 = 1;
+/*
+개발부	8
+영업부	8
+*/
 
-94. 부서별 평균 급여를 조회하되, A, B, C 등급으로 나눠서 출력.
-    200만원 초과 - A등급
-    150~200만원  - B등급
-    150만원 미만 - C등급
+--91. 지역별 인원수 순위 조회.
 
-95. 기본급+수당이 가장 많은 사람의 이름, 기본급+수당 조회.
-    MAX() 함수, 하위 쿼리 이용.
+SELECT CITY "지역", COUNT(*) "인원수", RANK() OVER(ORDER BY COUNT(*) DESC) "랭크"
+FROM TBL_INSA
+GROUP BY CITY;
+/*
+서울	20	1
+경기	13	2
+인천	9	3
+전북	5	4
+전남	3	5
+부산	3	5
+제주	2	7
+강원	2	7
+경남	1	9
+경북	1	9
+충남	1	9
+*/
+
+--92. 지역별 인원수 순위 조회하되 5순위까지만 출력.
+
+SELECT T.지역, T.인원수, T.랭크
+FROM
+(
+    SELECT CITY "지역", COUNT(*) "인원수", RANK() OVER(ORDER BY COUNT(*) DESC) "랭크"
+    FROM TBL_INSA
+    GROUP BY CITY
+)T
+WHERE T.랭크 < 6;
+/*
+서울	20	1
+경기	13	2
+인천	9	3
+전북	5	4
+부산	3	5
+전남	3	5
+*/
+
+
+--93. 이름, 부서, 출신도, 기본급, 수당, 기본급+수당, 세금, 실수령액 조회
+--    단, 세금: 총급여가 250만원 이상이면 2%, 200만원 이상이면 1%, 나머지 0.
+--    실수령액: 총급여-세금
+
+SELECT T.이름, T.부서, T.출신도, T.기본급, T.수당, T.총급여, T.세금, (T.총급여 - T. 세금) "실수령액"  
+FROM
+(    
+    SELECT NAME "이름", BUSEO "부서", CITY "출신도", BASICPAY "기본급", SUDANG "수당", NVL(BASICPAY, 0) + NVL(SUDANG, 0) "총급여"
+         , CASE WHEN NVL(BASICPAY, 0) + NVL(SUDANG, 0) > 2500000 THEN TRUNC((NVL(BASICPAY, 0) + NVL(SUDANG, 0))*0.02)
+                WHEN NVL(BASICPAY, 0) + NVL(SUDANG, 0) > 2000000 THEN TRUNC((NVL(BASICPAY, 0) + NVL(SUDANG, 0))*0.01)
+                ELSE 0
+                END "세금"            
+    FROM TBL_INSA
+)T;
+/*
+홍길동	기획부	서울	2610000	200000	2810000	56200	2753800
+이순신	총무부	경기	1320000	200000	1520000	0	    1520000
+이순애	개발부	인천	2550000	160000	2710000	54200	2655800
+김정훈	영업부	전북	1954200	170000	2124200	21242	2102958
+한석봉	총무부	서울	1420000	160000	1580000	0	    1580000
+이기자	개발부	인천	2265000	150000	2415000	24150	2390850
+장인철	개발부	제주	1250000	150000	1400000	0	    1400000
+김영년	홍보부	서울	950000	145000	1095000	0	    1095000
+나윤균	인사부	경기	840000	220400	1060400	0	    1060400
+김종서	영업부	부산	2540000	130000	2670000	53400	2616600
+유관순	영업부	서울	1020000	140000	1160000	0	    1160000
+정한국	홍보부	강원	880000	114000	994000	0	    994000
+조미숙	홍보부	경기	1601000	103000	1704000	0	    1704000
+황진이	개발부	인천	1100000	130000	1230000	0	    1230000
+이현숙	총무부	경기	1050000	104000	1154000	0	    1154000
+이상헌	개발부	경기	2350000	150000	2500000	25000	2475000
+엄용수	개발부	인천	950000	210000	1160000	0	    1160000
+이성길	개발부	전북	880000	123000	1003000	0	    1003000
+박문수	인사부	서울	2300000	165000	2465000	24650	2440350
+유영희	자재부	전남	880000	140000	1020000	0	    1020000
+홍길남	개발부	경기	875000	120000	995000	0	    995000
+이영숙	기획부	전남	1960000	180000	2140000	21400	2118600
+김인수	영업부	서울	2500000	170000	2670000	53400	2616600
+김말자	기획부	서울	1900000	170000	2070000	20700	2049300
+우재옥	영업부	서울	1100000	160000	1260000	0	    1260000
+김숙남	영업부	경기	1050000	150000	1200000	0	    1200000
+김영길	총무부	서울	2340000	170000	2510000	50200	2459800
+이남신	인사부	제주	892000	110000	1002000	0	    1002000
+김말숙	총무부	서울	920000	124000	1044000	0	    1044000
+정정해	총무부	부산	2304000	124000	2428000	24280	2403720
+지재환	기획부	서울	2450000	160000	2610000	52200	2557800
+심심해	자재부	전북	880000	108000	988000	0	    988000
+김미나	영업부	서울	1020000	104000	1124000	0	    1124000
+이정석	기획부	경기	1100000	160000	1260000	0	    1260000
+정영희	개발부	인천	1050000	140000	1190000	0	    1190000
+이재영	자재부	서울	960400	190000	1150400	0	    1150400
+최석규	홍보부	인천	2350000	187000	2537000	50740	2486260
+손인수	영업부	부산	2000000	150000	2150000	21500	2128500
+고순정	영업부	경기	2010000	160000	2170000	21700	2148300
+박세열	인사부	경북	2100000	130000	2230000	22300	2207700
+문길수	자재부	충남	2300000	150000	2450000	24500	2425500
+채정희	개발부	경기	1020000	200000	1220000	0	    1220000
+양미옥	영업부	서울	1100000	210000	1310000	0	    1310000
+지수환	영업부	서울	1060000	220000	1280000	0	    1280000
+홍원신	영업부	전북	960000	152000	1112000	0	    1112000
+허경운	총무부	경남	2650000	150000	2800000	56000	2744000
+산마루	영업부	서울	2100000	112000	2212000	22120	2189880
+이기상	개발부	전남	2050000	106000	2156000	21560	2134440
+이미성	개발부	인천	1300000	130000	1430000	0	    1430000
+이미인	홍보부	경기	1950000	103000	2053000	20530	2032470
+권영미	영업부	서울	2260000	104000	2364000	23640	2340360
+권옥경	기획부	경기	1020000	105000	1125000	0   	1125000
+김싱식	자재부	전북	960000	108000	1068000	0	    1068000
+정상호	홍보부	강원	980000	114000	1094000	0   	1094000
+정한나	영업부	서울	1000000	104000	1104000	0   	1104000
+전용재	영업부	인천	1950000	200000	2150000	21500	2128500
+이미경	자재부	경기	2520000	160000	2680000	53600	2626400
+김신제	기획부	인천	1950000	180000	2130000	21300	2108700
+임수봉	개발부	서울	890000	102000	992000	0   	992000
+김신애	개발부	서울	900000	102000	1002000	0   	1002000
+*/
+
+    
+
+--94. 부서별 평균 급여를 조회하되, A, B, C 등급으로 나눠서 출력.
+--    200만원 초과 - A등급
+--    150~200만원  - B등급
+--    150만원 미만 - C등급
+
+SELECT BUSEO "부서", ROUND(AVG((NVL(BASICPAY, 0) + NVL(SUDANG, 0)))) "평균급여"
+     , CASE WHEN ROUND(AVG((NVL(BASICPAY, 0) + NVL(SUDANG, 0)))) > 2000000 THEN 'A등급'
+            WHEN ROUND(AVG((NVL(BASICPAY, 0) + NVL(SUDANG, 0)))) > 1500000 THEN 'B등급'
+            WHEN ROUND(AVG((NVL(BASICPAY, 0) + NVL(SUDANG, 0)))) < 1500000 THEN 'C등급'
+            ELSE '등급오류' END "등급"
+FROM TBL_INSA
+GROUP BY BUSEO;
+/*
+총무부	1862286	B등급
+개발부	1528786	B등급
+영업부	1753763	B등급
+기획부	2020714	A등급
+인사부	1689350	B등급
+자재부	1559400	B등급
+홍보부	1579500	B등급
+*/
+
+
+--95. 기본급+수당이 가장 많은 사람의 이름, 기본급+수당 조회.
+--    MAX() 함수, 하위 쿼리 이용.
+
+SELECT NAME "이름",(NVL(BASICPAY,0)+NVL(SUDANG,0)) "총급여"
+FROM TBL_INSA
+WHERE (NVL(BASICPAY,0)+NVL(SUDANG,0))
+      =(SELECT MAX(NVL(BASICPAY,0)+NVL(SUDANG,0)) FROM TBL_INSA);
+
+/*
+홍길동	2810000
+*/
+
 
 
 ----------------------------------------------------------------------------
