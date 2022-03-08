@@ -281,7 +281,7 @@ LOC             VARCHAR2(13)
               NUMBER(4)    → -9999 ~ 9999
               NUMBER(4, 1) → -999.9 ~ 999.9   
               
-    2. 문자형 CHAR         → 고정형 크기
+    2. 문자형 CHAR         → 고정형 크기 (한글자)
               CHAR(10)     → 무조건 10Byte 소모
               CHAR(10)     ← '강의실'       로 할때 원래 6Byte 이지만 10Byte 소모 OK!
               CHAR(10)     ← '졸린한충희'   원래 10Byte 10Byte 소모 OK~
